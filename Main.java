@@ -8,7 +8,7 @@ public class Main {
             // ========== STEP 1: Setup ==========
             String file1 = "input1.txt";
             String file2 = "input2.txt";
-            int k = 2; // k-gram size (using 3 words per k-gram)
+            int windowSize = 3; // Sliding window size (3 consecutive words per pattern)
 
             // ========== STEP 2: Read input files ==========
             FileHandler fileHandler = new FileHandler();
@@ -29,27 +29,27 @@ public class Main {
             text2 = processor.toLowerCase(text2);
             text2 = processor.removePunctuation(text2);
 
-            // ========== STEP 4: Generate k-grams ==========
-            KGramGenerator generator = new KGramGenerator();
-
-            List<String> kGrams1 = generator.generateKGrams(text1, k);
-            List<String> kGrams2 = generator.generateKGrams(text2, k);
-
-            System.out.println("K-grams from File 1: " + kGrams1.size());
-            System.out.println("K-grams from File 2: " + kGrams2.size());
-            System.out.println();
-
-            // ========== STEP 5 & 6: Match using Rabin-Karp hashing ==========
+            // ========== STEP 4: Run Rabin-Karp Algorithm ==========
+            // - Generate patterns from text1 using sliding window
+            // - Search each pattern in text2 using Rabin-Karp hashing
             RabinKarpMatcher matcher = new RabinKarpMatcher();
 
-            List<String> matchingKGrams = matcher.findMatches(kGrams1, kGrams2);
+            List<String> patterns1 = matcher.generatePatterns(text1, windowSize);
+            List<String> patterns2 = matcher.generatePatterns(text2, windowSize);
 
-            // ========== STEP 7: Calculate similarity ==========
+            System.out.println("Patterns from File 1: " + patterns1.size());
+            System.out.println("Patterns from File 2: " + patterns2.size());
+            System.out.println();
+
+            // Find matching patterns using Rabin-Karp search
+            List<String> matchingPhrases = matcher.findMatches(text1, text2, windowSize);
+
+            // ========== STEP 5: Calculate similarity ==========
             SimilarityCalculator calculator = new SimilarityCalculator();
 
-            double similarity = calculator.calculateSimilarity(kGrams1, kGrams2, matchingKGrams);
+            double similarity = calculator.calculateSimilarity(patterns1, patterns2, matchingPhrases);
 
-            // ========== STEP 8: Display result ==========
+            // ========== STEP 6: Display result ==========
             System.out.println("==============================");
             System.out.println(" PLAGIARISM DETECTION RESULT");
             System.out.println("==============================");
@@ -57,10 +57,10 @@ public class Main {
             System.out.println();
 
             System.out.println("Matching Phrases:");
-            if (matchingKGrams.isEmpty()) {
+            if (matchingPhrases.isEmpty()) {
                 System.out.println("- No matching phrases found");
             } else {
-                for (String match : matchingKGrams) {
+                for (String match : matchingPhrases) {
                     System.out.println("- " + match);
                 }
             }

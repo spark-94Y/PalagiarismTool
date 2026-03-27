@@ -498,12 +498,12 @@
             <!-- Stats -->
             <div class="stats">
                 <div class="stat">
-                    <div class="value" id="kgrams1Count">0</div>
-                    <div class="label">K-grams Doc 1</div>
+                    <div class="value" id="patterns1Count">0</div>
+                    <div class="label">Patterns Doc 1</div>
                 </div>
                 <div class="stat">
-                    <div class="value" id="kgrams2Count">0</div>
-                    <div class="label">K-grams Doc 2</div>
+                    <div class="value" id="patterns2Count">0</div>
+                    <div class="label">Patterns Doc 2</div>
                 </div>
                 <div class="stat">
                     <div class="value" id="matchCount">0</div>
@@ -685,8 +685,8 @@
             verdict.className = 'verdict ' + verdictClass;
 
             // Stats
-            document.getElementById('kgrams1Count').textContent = data.kGrams1Count;
-            document.getElementById('kgrams2Count').textContent = data.kGrams2Count;
+            document.getElementById('patterns1Count').textContent = data.patterns1Count;
+            document.getElementById('patterns2Count').textContent = data.patterns2Count;
             document.getElementById('matchCount').textContent = data.matchingPhrases.length;
 
             // Matching phrases

@@ -26,7 +26,7 @@ import java.util.List;
 public class WebServer {
 
     private static final int PORT = 8080;
-    private static final int K = 2; // k-gram size (2 words)
+    private static final int WINDOW_SIZE = 3; // Sliding window size (3 consecutive words per pattern)
 
     public static void main(String[] args) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -50,7 +50,6 @@ public class WebServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             if ("GET".equals(exchange.getRequestMethod())) {
-                // Read index.html file
                 byte[] htmlBytes = Files.readAllBytes(Paths.get("index.html"));
                 exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
                 exchange.sendResponseHeaders(200, htmlBytes.length);
@@ -58,7 +57,7 @@ public class WebServer {
                 os.write(htmlBytes);
                 os.close();
             } else {
-                exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+                exchange.sendResponseHeaders(405, -1);
             }
         }
     }
@@ -67,14 +66,11 @@ public class WebServer {
     static class AnalyzeHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            // Add CORS header
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
 
             if ("POST".equals(exchange.getRequestMethod())) {
-                // Read the request body
                 String body = new String(exchange.getRequestBody().readAllBytes(), "UTF-8");
 
-                // Parse the two texts from form data
                 String text1 = "";
                 String text2 = "";
 
@@ -92,10 +88,8 @@ public class WebServer {
                     }
                 }
 
-                // Run the plagiarism detection pipeline
                 String json = runAnalysis(text1, text2);
 
-                // Send JSON response
                 byte[] responseBytes = json.getBytes("UTF-8");
                 exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
                 exchange.sendResponseHeaders(200, responseBytes.length);
@@ -119,31 +113,31 @@ public class WebServer {
         String text2 = processor.toLowerCase(rawText2);
         text2 = processor.removePunctuation(text2);
 
-        // Step 2: Generate k-grams
-        KGramGenerator generator = new KGramGenerator();
-        List<String> kGrams1 = generator.generateKGrams(text1, K);
-        List<String> kGrams2 = generator.generateKGrams(text2, K);
-
-        // Step 3: Find matches using Rabin-Karp
+        // Step 2: Run Rabin-Karp with sliding window
         RabinKarpMatcher matcher = new RabinKarpMatcher();
-        List<String> matchingKGrams = matcher.findMatches(kGrams1, kGrams2);
 
-        // Step 4: Calculate similarity
+        List<String> patterns1 = matcher.generatePatterns(text1, WINDOW_SIZE);
+        List<String> patterns2 = matcher.generatePatterns(text2, WINDOW_SIZE);
+
+        // Find matching patterns using Rabin-Karp search
+        List<String> matchingPhrases = matcher.findMatches(text1, text2, WINDOW_SIZE);
+
+        // Step 3: Calculate similarity
         SimilarityCalculator calculator = new SimilarityCalculator();
-        double similarity = calculator.calculateSimilarity(kGrams1, kGrams2, matchingKGrams);
+        double similarity = calculator.calculateSimilarity(patterns1, patterns2, matchingPhrases);
 
-        // Build JSON response manually (no external library needed)
+        // Build JSON response
         StringBuilder json = new StringBuilder();
         json.append("{");
         json.append("\"similarity\":").append(similarity).append(",");
-        json.append("\"kGrams1Count\":").append(kGrams1.size()).append(",");
-        json.append("\"kGrams2Count\":").append(kGrams2.size()).append(",");
+        json.append("\"patterns1Count\":").append(patterns1.size()).append(",");
+        json.append("\"patterns2Count\":").append(patterns2.size()).append(",");
         json.append("\"matchingPhrases\":[");
 
-        for (int i = 0; i < matchingKGrams.size(); i++) {
+        for (int i = 0; i < matchingPhrases.size(); i++) {
             if (i > 0)
                 json.append(",");
-            json.append("\"").append(escapeJson(matchingKGrams.get(i))).append("\"");
+            json.append("\"").append(escapeJson(matchingPhrases.get(i))).append("\"");
         }
 
         json.append("]");
