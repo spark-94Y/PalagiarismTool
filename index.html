@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plagiarism Detector — Rabin-Karp</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #1a1a4e, #24243e);
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeDown 0.6s ease;
+        }
+
+        .header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #7b68ee, #00bfff, #7b68ee);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        .header p {
+            margin-top: 8px;
+            font-size: 1rem;
+            color: #8888aa;
+            font-weight: 400;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        @keyframes fadeDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== UPLOAD SECTION ===== */
+        .upload-section {
+            display: flex;
+            gap: 24px;
+            width: 100%;
+            max-width: 780px;
+            margin-bottom: 28px;
+            animation: fadeUp 0.6s ease 0.1s both;
+        }
+
+        .upload-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.04);
+            border: 2px dashed rgba(123, 104, 238, 0.3);
+            border-radius: 16px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-card:hover {
+            border-color: rgba(123, 104, 238, 0.7);
+            background: rgba(123, 104, 238, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .upload-card.has-file {
+            border-color: rgba(0, 210, 120, 0.5);
+            background: rgba(0, 210, 120, 0.05);
+        }
+
+        .upload-card input[type="file"] {
+            display: none;
+        }
+
+        .upload-card .icon {
+            font-size: 2.4rem;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .upload-card .label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #b0b0d0;
+            margin-bottom: 6px;
+        }
+
+        .upload-card .hint {
+            font-size: 0.78rem;
+            color: #6a6a8a;
+        }
+
+        .upload-card .file-name {
+            display: none;
+            margin-top: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #00d278;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .upload-card.has-file .file-name {
+            display: flex;
+        }
+
+        .upload-card.has-file .hint {
+            display: none;
+        }
+
+        .upload-card.dragover {
+            border-color: #7b68ee;
+            background: rgba(123, 104, 238, 0.12);
+            transform: scale(1.02);
+        }
+
+        /* ===== BUTTON ===== */
+        .btn-section {
+            animation: fadeUp 0.6s ease 0.2s both;
+            margin-bottom: 36px;
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #7b68ee, #5b4fd4);
+            color: #fff;
+            border: none;
+            padding: 14px 48px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(123, 104, 238, 0.35);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 28px rgba(123, 104, 238, 0.5);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ===== LOADING ===== */
+        .loading {
+            display: none;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(123, 104, 238, 0.2);
+            border-top-color: #7b68ee;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            color: #8888aa;
+            font-size: 0.9rem;
+        }
+
+        /* ===== RESULTS ===== */
+        .results {
+            display: none;
+            width: 100%;
+            max-width: 780px;
+            animation: fadeUp 0.5s ease;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .results-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 36px;
+        }
+
+        .results-card h2 {
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #9090b0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 28px;
+        }
+
+        /* Gauge */
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 28px;
+        }
+
+        .gauge {
+            position: relative;
+            width: 180px;
+            height: 180px;
+        }
+
+        .gauge svg {
+            transform: rotate(-90deg);
+        }
+
+        .gauge-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.06);
+            stroke-width: 12;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke-width: 12;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 1.2s ease, stroke 0.5s ease;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .gauge-text .percent {
+            font-size: 2.6rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .gauge-text .percent-sign {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .verdict {
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 16px;
+            padding: 8px 24px;
+            border-radius: 50px;
+        }
+
+        .verdict.low {
+            color: #00d278;
+            background: rgba(0, 210, 120, 0.1);
+        }
+
+        .verdict.moderate {
+            color: #f0a030;
+            background: rgba(240, 160, 48, 0.1);
+        }
+
+        .verdict.high {
+            color: #ff4466;
+            background: rgba(255, 68, 102, 0.1);
+        }
+
+        .verdict.none {
+            color: #00d278;
+            background: rgba(0, 210, 120, 0.1);
+        }
+
+        /* Stats */
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 24px 0;
+            padding: 16px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #b0b0ff;
+        }
+
+        .stat .label {
+            font-size: 0.75rem;
+            color: #6a6a8a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* Matching Phrases */
+        .matches-section {
+            margin-top: 24px;
+        }
+
+        .matches-section h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #9090b0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 14px;
+        }
+
+        .matches-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .match-tag {
+            background: rgba(123, 104, 238, 0.12);
+            border: 1px solid rgba(123, 104, 238, 0.2);
+            color: #b0a0ff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .match-tag:hover {
+            background: rgba(123, 104, 238, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .no-matches {
+            color: #6a6a8a;
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
+        /* Error */
+        .error-msg {
+            display: none;
+            text-align: center;
+            color: #ff4466;
+            background: rgba(255, 68, 102, 0.08);
+            border: 1px solid rgba(255, 68, 102, 0.2);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            width: 100%;
+            max-width: 780px;
+        }
+
+        .error-msg.active {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .upload-section {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .stats {
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>🔍 Plagiarism Detector</h1>
+        <p>Upload two documents to check for similarity using Rabin-Karp algorithm</p>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="upload-section">
+        <!-- Document 1 -->
+        <div class="upload-card" id="card1" onclick="document.getElementById('file1').click()">
+            <input type="file" id="file1" accept=".txt" />
+            <span class="icon">📄</span>
+            <div class="label">Document 1</div>
+            <div class="hint">Drag & drop or click to browse</div>
+            <div class="file-name" id="fileName1">
+                <span>✅</span>
+                <span id="fileNameText1"></span>
+            </div>
+        </div>
+
+        <!-- Document 2 -->
+        <div class="upload-card" id="card2" onclick="document.getElementById('file2').click()">
+            <input type="file" id="file2" accept=".txt" />
+            <span class="icon">📄</span>
+            <div class="label">Document 2</div>
+            <div class="hint">Drag & drop or click to browse</div>
+            <div class="file-name" id="fileName2">
+                <span>✅</span>
+                <span id="fileNameText2"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- Analyze Button -->
+    <div class="btn-section">
+        <button class="analyze-btn" id="analyzeBtn" disabled>Check Plagiarism</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Analyzing documents...</p>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results">
+        <div class="results-card">
+            <h2>Plagiarism Detection Result</h2>
+
+            <!-- Circular Gauge -->
+            <div class="gauge-container">
+                <div class="gauge">
+                    <svg width="180" height="180" viewBox="0 0 180 180">
+                        <circle class="gauge-bg" cx="90" cy="90" r="78"></circle>
+                        <circle class="gauge-fill" id="gaugeFill" cx="90" cy="90" r="78"
+                            stroke-dasharray="490" stroke-dashoffset="490"></circle>
+                    </svg>
+                    <div class="gauge-text">
+                        <span class="percent" id="percentText">0</span><span class="percent-sign">%</span>
+                    </div>
+                </div>
+                <div class="verdict" id="verdict"></div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats">
+                <div class="stat">
+                    <div class="value" id="kgrams1Count">0</div>
+                    <div class="label">K-grams Doc 1</div>
+                </div>
+                <div class="stat">
+                    <div class="value" id="kgrams2Count">0</div>
+                    <div class="label">K-grams Doc 2</div>
+                </div>
+                <div class="stat">
+                    <div class="value" id="matchCount">0</div>
+                    <div class="label">Matches</div>
+                </div>
+            </div>
+
+            <!-- Matching Phrases -->
+            <div class="matches-section">
+                <h3>Matching Phrases</h3>
+                <div class="matches-list" id="matchesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== File upload handling =====
+        const file1Input = document.getElementById('file1');
+        const file2Input = document.getElementById('file2');
+        const card1 = document.getElementById('card1');
+        const card2 = document.getElementById('card2');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        let selectedFile1 = null;
+        let selectedFile2 = null;
+
+        // File input change handlers
+        file1Input.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                selectedFile1 = this.files[0];
+                document.getElementById('fileNameText1').textContent = selectedFile1.name;
+                card1.classList.add('has-file');
+            }
+            updateButton();
+        });
+
+        file2Input.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                selectedFile2 = this.files[0];
+                document.getElementById('fileNameText2').textContent = selectedFile2.name;
+                card2.classList.add('has-file');
+            }
+            updateButton();
+        });
+
+        // Drag & drop for both cards
+        [card1, card2].forEach((card, index) => {
+            card.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                card.classList.add('dragover');
+            });
+
+            card.addEventListener('dragleave', () => {
+                card.classList.remove('dragover');
+            });
+
+            card.addEventListener('drop', (e) => {
+                e.preventDefault();
+                card.classList.remove('dragover');
+
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    if (index === 0) {
+                        selectedFile1 = file;
+                        file1Input.files = e.dataTransfer.files;
+                        document.getElementById('fileNameText1').textContent = file.name;
+                        card1.classList.add('has-file');
+                    } else {
+                        selectedFile2 = file;
+                        file2Input.files = e.dataTransfer.files;
+                        document.getElementById('fileNameText2').textContent = file.name;
+                        card2.classList.add('has-file');
+                    }
+                    updateButton();
+                }
+            });
+        });
+
+        function updateButton() {
+            analyzeBtn.disabled = !(selectedFile1 && selectedFile2);
+        }
+
+        // ===== Analyze =====
+        analyzeBtn.addEventListener('click', async () => {
+            const errorMsg = document.getElementById('errorMsg');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            // Hide previous state
+            errorMsg.classList.remove('active');
+            results.classList.remove('active');
+            loading.classList.add('active');
+            analyzeBtn.disabled = true;
+
+            try {
+                // Read file contents
+                const text1 = await selectedFile1.text();
+                const text2 = await selectedFile2.text();
+
+                // Send to server
+                const formData = new URLSearchParams();
+                formData.append('text1', text1);
+                formData.append('text2', text2);
+
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server returned an error. Make sure WebServer is running.');
+                }
+
+                const data = await response.json();
+
+                // Display results
+                displayResults(data);
+
+            } catch (err) {
+                errorMsg.textContent = '⚠️ ' + err.message;
+                errorMsg.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // ===== Display Results =====
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            const similarity = data.similarity;
+
+            // Determine color and verdict
+            let color, verdictText, verdictClass;
+            if (similarity >= 80) {
+                color = '#ff4466';
+                verdictText = 'High Plagiarism Detected';
+                verdictClass = 'high';
+            } else if (similarity >= 50) {
+                color = '#f0a030';
+                verdictText = 'Moderate Plagiarism Detected';
+                verdictClass = 'moderate';
+            } else if (similarity >= 30) {
+                color = '#f0a030';
+                verdictText = 'Low Plagiarism Detected';
+                verdictClass = 'moderate';
+            } else {
+                color = '#00d278';
+                verdictText = 'No Significant Plagiarism';
+                verdictClass = 'none';
+            }
+
+            // Animate gauge
+            const circumference = 2 * Math.PI * 78; // ~490
+            const offset = circumference - (similarity / 100) * circumference;
+            const gaugeFill = document.getElementById('gaugeFill');
+            gaugeFill.style.stroke = color;
+            gaugeFill.style.strokeDasharray = circumference;
+
+            // Reset and animate
+            gaugeFill.style.transition = 'none';
+            gaugeFill.style.strokeDashoffset = circumference;
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    gaugeFill.style.transition = 'stroke-dashoffset 1.2s ease';
+                    gaugeFill.style.strokeDashoffset = offset;
+                });
+            });
+
+            // Animate percentage number
+            const percentText = document.getElementById('percentText');
+            percentText.style.color = color;
+            animateNumber(percentText, 0, similarity, 1000);
+
+            // Verdict
+            const verdict = document.getElementById('verdict');
+            verdict.textContent = verdictText;
+            verdict.className = 'verdict ' + verdictClass;
+
+            // Stats
+            document.getElementById('kgrams1Count').textContent = data.kGrams1Count;
+            document.getElementById('kgrams2Count').textContent = data.kGrams2Count;
+            document.getElementById('matchCount').textContent = data.matchingPhrases.length;
+
+            // Matching phrases
+            const matchesList = document.getElementById('matchesList');
+            matchesList.innerHTML = '';
+
+            if (data.matchingPhrases.length === 0) {
+                matchesList.innerHTML = '<span class="no-matches">No matching phrases found</span>';
+            } else {
+                data.matchingPhrases.forEach((phrase, i) => {
+                    const tag = document.createElement('span');
+                    tag.className = 'match-tag';
+                    tag.textContent = phrase;
+                    tag.style.animationDelay = (i * 0.05) + 's';
+                    matchesList.appendChild(tag);
+                });
+            }
+
+            results.classList.add('active');
+        }
+
+        // Animate a number counting up
+        function animateNumber(element, start, end, duration) {
+            const startTime = performance.now();
+
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease out
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = start + (end - start) * eased;
+
+                element.textContent = current.toFixed(1);
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    element.textContent = end.toFixed(2);
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+    </script>
+</body>
+</html>
